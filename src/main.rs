@@ -3,21 +3,9 @@ use nannou::prelude::*;
 fn main() {
     nannou::app(model).simple_window(view).run();
 }
-struct Wander {
-    ux: f32,
-    uy: f32,
-    w: f32,
-    h: f32,
-}
-impl Wander {
-    fn display(canvas: &Draw) {
-
-    }
-}
-
 struct Model {
 }
-fn model(app: &App) -> Model {
+fn model(_app: &App) -> Model {
     Model{}
 }
 
@@ -34,8 +22,8 @@ fn view(app: &App, _model: &Model, frame: Frame) {
     let w = win.w();
     let h = win.h();
 
-    let rw = (100.0-t*5.0);
-    let rh = (100.0-t*5.0);
+    let rw = 100.0-t*5.0;
+    let rh = 100.0-t*5.0;
     if rw < 1.0 {
         return
     }
@@ -45,7 +33,7 @@ fn view(app: &App, _model: &Model, frame: Frame) {
     let mut r: u8 = 0;
     let mut g: u8 = 0;
     let mut b: u8 = 0;
-    let mut a: u8 = 0;
+    let mut a: u8;
 
     for i in 0..=128 {
         let fi = (i as f32)/128.0;
