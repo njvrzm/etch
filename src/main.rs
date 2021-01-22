@@ -1,63 +1,133 @@
-use nannou::prelude::*;
+use nannou::{color::named, prelude::*};
+use crate::Color::DarkGoldenrod;
 
 fn main() {
-    nannou::app(model).simple_window(view).run();
+    nannou::app(model).update(update).simple_window(view).run();
 }
+
+trait Etch {
+    fn display(&self, draw: &Draw, time: f32);
+    fn update(&mut self);
+}
+
+#[derive(Debug,Clone,Copy)]
+enum Color {
+    DarkGoldenrod,
+    SeaGreen,
+}
+impl ToString for Color {
+    fn to_string(&self) -> String {
+        format!("{:?}", self).to_lowercase()
+    }
+}
+impl From<Color> for Srgb<u8> {
+    fn from(c: Color) -> Self {
+        named::from_str(&c.to_string()).unwrap()
+    }
+}
+
+type Point = Point2;
+struct Splotch {
+    locus: Point,
+    width: f32,
+    length: f32,
+    color: Color,
+    turn: f32,
+    swerve: f32,
+    win_rect: Rect,
+}
+impl Splotch {
+    fn new(win_rect: Rect) -> Self {
+        Self{
+            locus: Point::default(),
+            width: 25.0,
+            length: 50.0,
+            color: Color::DarkGoldenrod,
+            turn: 0.0,
+            swerve: 0.02,
+            win_rect,
+        }
+    }
+    fn scale(&self) {
+
+    }
+}
+impl Etch for Splotch {
+    fn display(&self, draw: &Draw, time: f32) {
+        let f = (1.0-time/10.0).max(0.0);
+        let d = draw.scale(f);
+        d.ellipse()
+            .w(self.width)
+            .h(self.length)
+            .xy(self.locus)
+            .z_turns(self.turn)
+            .color(self.color(f));
+        let step = Vector2::new(0.0, 20.0).rotate(self.turn*6.2832);
+        d.ellipse()
+            .w(self.width/2.0)
+            .h(self.length/2.0)
+            .xy(self.locus+step)
+            .z_turns(self.turn)
+            .color(self.color(f));
+    }
+
+    fn update(&mut self) {
+        self.turn += random_range(-self.swerve, self.swerve);
+        let step = Vector2::new(0.0, 20.0).rotate(self.turn*6.2832);
+        self.locus += step;
+        if self.locus.x < self.win_rect.left() {
+            // println!("Too left: {} {}", self.locus.x, self.win_rect.left());
+            self.locus.x += self.win_rect.w()
+        } else if self.locus.x > self.win_rect.right() {
+            // println!("Too right: {} {}", self.locus.x, self.win_rect.right());
+            self.locus.x -= self.win_rect.w()
+        }
+        if self.locus.y < self.win_rect.bottom() {
+            // println!("Too down: {} {}", self.locus.y, self.win_rect.bottom());
+            self.locus.y += self.win_rect.h()
+        } else if self.locus.y > self.win_rect.top() {
+            self.locus.y -= self.win_rect.h()
+        }
+    }
+}
+impl Splotch {
+    fn color(&self, factor: f32) -> Srgba<f32> {
+        Srgba::new((3.0 * self.turn).sin(), (7.0 * self.turn).sin(), (11.0 * self.turn).sin(), 0.32*factor)
+    }
+}
+
 struct Model {
-}
-fn model(_app: &App) -> Model {
-    Model{}
+    // nsplotches: u32,
+    splotches: Vec<Splotch>,
 }
 
-fn view(app: &App, _model: &Model, frame: Frame) {
-    // get canvas to draw on
-    let sint = app.time.sin();
-    let t = app.time;
+fn model(app: &App) -> Model {
+    app.draw().background().color(Rgb::from(Color::SeaGreen));
+    Model::new(app)
+}
 
+impl Etch for Model {
+    fn display(&self, draw: &Draw<f32>, time: f32) {
+        self.splotches.iter().for_each(|s|s.display(draw, time))
+    }
+
+    fn update(&mut self) {
+        self.splotches.iter_mut().for_each(|s|s.update())
+    }
+}
+impl Model {
+    fn new(app: &App) -> Self {
+        Self {
+            splotches: (0..127).map(|_|Splotch::new(app.window_rect())).collect()
+        }
+    }
+}
+fn update(_app: &App, model: &mut Model, _update: Update) {
+    model.update();
+}
+
+fn view(app: &App, model: &Model, frame: Frame) {
     let canvas = app.draw();
-    if frame.nth() == 0 {
-        canvas.background().color(PURPLE);
-    }
-    let win = app.window_rect();
-    let w = win.w();
-    let h = win.h();
-
-    let rw = 100.0-t*5.0;
-    let rh = 100.0-t*5.0;
-    if rw < 1.0 {
-        return
-    }
-    let rec = Rect::from_w_h(rw, rh);
-    let mut x: f32 = 0.0;
-    let mut y: f32 = 0.0;
-    let mut r: u8 = 0;
-    let mut g: u8 = 0;
-    let mut b: u8 = 0;
-    let mut a: u8;
-
-    for i in 0..=128 {
-        let fi = (i as f32)/128.0;
-        x = (x+37.7*fi+w/2.0+ t*t)%w - w/2.0 + (10*(i%10-5)) as f32;
-        y = (y+67.7+h/2.0 + t*t)%h - h/2.0;
-        r = r+199*((255.0*x) as u8);
-        g = g+37;
-        b = b+100;
-        a = 25;
-        canvas.ellipse()
-            .xy(rec.xy())
-            .w_h(rec.w()/2.0, rec.h())
-            .x_y(x, y)
-            .z_turns(sint+x/w)
-            .color(rgba8(255-r, 255-g, 255-b, a));
-        canvas.ellipse()
-            .xy(rec.xy())
-            .w_h(rec.w()*1.5, rec.h()/3.0)
-            .x_y(x, y)
-            .z_turns(sint+x/w)
-            .color(rgba8(r, g, b, a));
-
-    }
-
-    // put everything on the frame
+    model.display(&canvas, app.time);
     canvas.to_frame(app, &frame).unwrap();
 }
